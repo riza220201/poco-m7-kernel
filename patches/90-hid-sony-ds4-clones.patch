@@ -1,0 +1,108 @@
+Subject: hid-sony: DualShock 4 clone fallbacks (from the RS4 v8)
+Base: ACK android13-5.15-lts f181319b (5.15.223), local import 382ab0ad8696; applied in patches/series order
+---
+diff --git a/drivers/hid/hid-sony.c b/drivers/hid/hid-sony.c
+index c330d5a20ca040e6ae6b08a48bf02aa857f7cec1..04076ddb563fc4e9b79a393c17ec36f40d95b858 100644
+--- a/drivers/hid/hid-sony.c
++++ b/drivers/hid/hid-sony.c
+@@ -38,6 +38,7 @@
+ #include <linux/idr.h>
+ #include <linux/input/mt.h>
+ #include <linux/crc32.h>
++#include <linux/etherdevice.h>
+ #include <linux/usb.h>
+ #include <linux/timer.h>
+ #include <asm/unaligned.h>
+@@ -1701,8 +1702,29 @@ static int sixaxis_set_operational_bt(struct hid_device *hdev)
+  * Request DS4 calibration data for the motion sensors.
+  * For Bluetooth this also affects the operating mode (see below).
+  */
++/*
++ * ds4-clones (from the RS4 v8): neutral DS4 calibration, for controllers whose calibration report is
++ * missing or unusable (third-party DS4s; see sony_input_configured()). Raw
++ * sensor values pass through scaled to the full s16 range; the important
++ * property is that no denominator is zero.
++ */
++static void dualshock4_set_default_calibration(struct sony_sc *sc)
++{
++	static const int codes[] = { ABS_RX, ABS_RY, ABS_RZ, ABS_X, ABS_Y, ABS_Z };
++	int i;
++
++	for (i = 0; i < ARRAY_SIZE(codes); i++) {
++		sc->ds4_calib_data[i].abs_code = codes[i];
++		sc->ds4_calib_data[i].bias = 0;
++		sc->ds4_calib_data[i].sens_numer = i < 3 ?
++			2 * DS4_GYRO_RES_PER_DEG_S : 2 * DS4_ACC_RES_PER_G;
++		sc->ds4_calib_data[i].sens_denom = S16_MAX;
++	}
++}
++
+ static int dualshock4_get_calibration_data(struct sony_sc *sc)
+ {
++	int i;
+ 	u8 *buf;
+ 	int ret;
+ 	short gyro_pitch_bias, gyro_pitch_plus, gyro_pitch_minus;
+@@ -1858,6 +1880,15 @@ static int dualshock4_get_calibration_data(struct sony_sc *sc)
+ 	sc->ds4_calib_data[5].sens_numer = 2*DS4_ACC_RES_PER_G;
+ 	sc->ds4_calib_data[5].sens_denom = range_2g;
+ 
++	/* ds4-clones (from the RS4 v8): a report full of zeros would make dualshock4_parse_report() divide by zero */
++	for (i = 0; i < ARRAY_SIZE(sc->ds4_calib_data); i++) {
++		if (!sc->ds4_calib_data[i].sens_denom) {
++			hid_warn(sc->hdev, "DualShock 4 calibration report is invalid, using defaults\n");
++			dualshock4_set_default_calibration(sc);
++			break;
++		}
++	}
++
+ err_stop:
+ 	kfree(buf);
+ 	return ret;
+@@ -2627,13 +2658,19 @@ static int sony_check_add(struct sony_sc *sc)
+ 				HID_REQ_GET_REPORT);
+ 
+ 		if (ret != DS4_FEATURE_REPORT_0x81_SIZE) {
+-			hid_err(sc->hdev, "failed to retrieve feature report 0x81 with the DualShock 4 MAC address\n");
+-			ret = ret < 0 ? ret : -EINVAL;
+-			goto out_free;
++			/*
++			 * rs4: third-party DS4s (same 054c:09cc ids) often do not
++			 * implement report 0x81. Failing here leaves the pad with no
++			 * input device at all; use a random, locally administered
++			 * address instead, so the duplicate check and the battery
++			 * name stay unique.
++			 */
++			hid_warn(sc->hdev, "no DualShock 4 MAC address (feature report 0x81: %d), using a random one\n", ret);
++			eth_random_addr(sc->mac_address);
++		} else {
++			memcpy(sc->mac_address, &buf[1], sizeof(sc->mac_address));
+ 		}
+ 
+-		memcpy(sc->mac_address, &buf[1], sizeof(sc->mac_address));
+-
+ 		snprintf(sc->hdev->uniq, sizeof(sc->hdev->uniq),
+ 			 "%pMR", sc->mac_address);
+ 	} else if ((sc->quirks & SIXAXIS_CONTROLLER_USB) ||
+@@ -2850,14 +2887,17 @@ static int sony_input_configured(struct hid_device *hdev,
+ 	} else if (sc->quirks & DUALSHOCK4_CONTROLLER) {
+ 		ret = dualshock4_get_calibration_data(sc);
+ 		if (ret < 0) {
+-			hid_err(hdev, "Failed to get calibration data from Dualshock 4\n");
+-			goto err_stop;
++			/* ds4-clones (from the RS4 v8): degrade, do not fail (third-party DS4s) */
++			hid_warn(hdev, "Failed to get calibration data from Dualshock 4 (%d), using defaults\n", ret);
++			dualshock4_set_default_calibration(sc);
+ 		}
+ 
+ 		ret = dualshock4_get_version_info(sc);
+ 		if (ret < 0) {
+-			hid_err(sc->hdev, "Failed to get version data from Dualshock 4\n");
+-			goto err_stop;
++			/* ds4-clones (from the RS4 v8): degrade, do not fail (third-party DS4s) */
++			hid_warn(sc->hdev, "Failed to get version data from Dualshock 4 (%d)\n", ret);
++			sc->fw_version = 0;
++			sc->hw_version = 0;
+ 		}
+ 
+ 		ret = device_create_file(&sc->hdev->dev, &dev_attr_firmware_version);

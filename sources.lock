@@ -1,0 +1,37 @@
+# sources.lock — the single source of truth for every out-of-tree commit this
+# project builds from. A branch name is not a pin: branches move, and a build
+# that cannot be re-run is not a build you can stand behind.
+#
+# Sourced by build.sh, tools/fetch-kernel-source.sh and the apply-* scripts.
+# Env overrides anything here.
+
+# ── Kernel source: Google ACK android13-5.15-lts ─────────────────────────────
+# Stock creek kernel: 5.15.194-android13-8-00019-gf4321180a397-ab15212794
+# (built from common-android13-5.15-2025-12, Google clang 14.0.7 r450784e).
+# KMI generation 8 on both sides; module_layout 0x0222dd63.
+KERNEL_COMMON_URL="https://android.googlesource.com/kernel/common"
+KERNEL_COMMON_BRANCH="android13-5.15-lts"
+KERNEL_COMMON_UPSTREAM_REF="f181319b13edc6e68c367bc247e36bc255097483"   # branch tip 2026-11-15
+KERNEL_COMMON_VERSION="5.15.223"
+# The tarball is imported as ONE local commit with fixed identity and dates
+# (tools/fetch-kernel-source.sh), so its hash is reproducible:
+KERNEL_COMMON_REF="382ab0ad8696dd43a5d08e6d9cf2ef7265a4a1d0"   # local import of the tarball (fixed identity + dates)
+
+# ── Toolchain (Neutron clang 24) ─────────────────────────────────────────────
+CLANG_VERSION="neutron-clang-06092026 (clang 24.0.0git, llvm f42c87ba)"
+: "${CLANG_BIN_SHA256=5ddad56ef3504ccc39da055c897ecbed28b5bfa548a8e6db9faf76c95f287438}"   # bin/clang-24 (env CLANG_BIN_SHA256= disables, for the r450784e reference build)
+
+# ── ksunext variant: KernelSU-Next "Wild" (pershoot dev-susfs) + SusFS v2.4.0 ────
+# The SAME KSU pin as itel-rs4-kernel v10 (11-15), so one manager serves both kernels:
+# KernelSU-Next CI "Build Manager" run 43601257081 (7ccf6147, versionCode 33553, uapi 6).
+# pershoot rebased dev-susfs again on 11-14 (tip 4776e7cd, same 13 Wild commits on a new
+# base); 54f1011f is on no branch now but stays fetchable by SHA (kept in .build/wildksu).
+WILDKSU_REF="54f1011f9f1c8d8e31df47995243d6551fb1a93b"
+WILDKSU_VERBASE="7ccf61479621f240c0d968ef46f1b167b6ceb500"   # merge-base with upstream KernelSU-Next dev
+WILDKSU_VER_EXPECT="33553"                                   # 30000 + rev-count(VERBASE); apply script dies on drift
+# simonpunk gki-android13-5.15 @ 9da0b0e (2026-11-15, v2.4.0, has sus_path_uid_filter) + pershoot's
+# three core picks (as carried by the RS4: cf36d9d, 3788438, a904213) = local branch
+# creek-susfs-20261115 in .build/susfs-515. Core files == the RS4 v10's 36c017ec minus its
+# 5.10-only susfs_get_data_path helper (5.15's 50_ never calls it).
+SUSFS_UPSTREAM_REF="9da0b0e"
+SUSFS_REF="31529ed066931ab7383c3e9f2b6d62f18dbcf953"
