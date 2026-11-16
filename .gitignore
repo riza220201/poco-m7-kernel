@@ -2,6 +2,7 @@
 /.build/
 /out/
 /dist/
+/dist-*/
 /stock_images/
 
 # Stock firmware images — OEM firmware, not ours to redistribute;

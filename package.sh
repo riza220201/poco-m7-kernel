@@ -33,7 +33,7 @@ source "$PROJ/device.conf"
 
 OUT="$PROJ/out/$VARIANT"
 DIST="$PROJ/dist"
-DATE="$(TZ=Asia/Jakarta date +%Y%m%d)"   # WIB, like the other projects (the build server runs on UTC)
+DATE="${PKG_DATE:-$(TZ=Asia/Jakarta date +%Y%m%d)}"   # WIB, like the other projects (the build server runs on UTC)
 DEVSLUG="$(echo "$DEVICE_LABEL" | tr -cd '[:alnum:]')"
 
 # ── Verify all 6 Gate Layers passed (9 log files) ───────────────────────────
@@ -140,7 +140,7 @@ for n in $DEVICE_NAMES; do
   NAMELINES+="device.name${i}=${n}"$'\n'
   i=$((i+1))
 done
-DEVCHECK=0; [[ -n "$DEVICE_NAMES" ]] && DEVCHECK=1
+DEVCHECK=0; [[ "${DEVICE_CHECK:-0}" == 1 && -n "$DEVICE_NAMES" ]] && DEVCHECK=1   # device.conf: off (Redmi 15 4G)
 
 cat > "$AK/anykernel.sh" <<AKEOF
 ### AnyKernel3 Ramdisk Mod Script
