@@ -1,8 +1,8 @@
-# Riza Kernel — Xiaomi POCO M7 (`creek`)
+# Riza Kernel — Xiaomi POCO M7 / Redmi 15 4G (`creek`)
 
-A GKI build-and-gate pipeline for the **Xiaomi POCO M7 (`creek`, Qualcomm Snapdragon 685 `SM6225` "khaje", `android13-5.15`)**, stock firmware HyperOS 3 `OS3.0.305.0.WBOMIXM` (Android 16, global).
+A GKI build-and-gate pipeline for the **Xiaomi POCO M7 / Redmi 15 4G (`creek`, Qualcomm Snapdragon 685 `SM6225` "khaje", `android13-5.15`)** — one codename, two brands — built against HyperOS 3 `OS3.0.305.0.WBOMIXM` (Android 16, global).
 
-> **Status:** built from Google ACK `android13-5.15-lts` (**Linux 5.15.223**, 29 LTS releases ahead of stock `5.15.194`) with **Neutron Clang 24**, gated clean across all **564 device modules** (`562 vendor + 2 system_dlkm`), all **8,575 stock `vmlinux` exports**, and the vendor modules' **CFI type ids**, and run under QEMU. **Not yet booted on a phone.**
+> **Status:** built from Google ACK `android13-5.15-lts` (**Linux 5.15.223**, 29 LTS releases ahead of stock `5.15.194`) with **Neutron Clang 24**, gated clean across all **564 device modules** (`562 vendor + 2 system_dlkm`), all **8,575 stock `vmlinux` exports**, and the vendor modules' **CFI type ids**, and run under QEMU. **v1 booted on a Redmi 15 4G** (ksunext, SELinux enforcing, every stock module loaded); no POCO M7 report yet.
 
 ## Variants & Features
 
